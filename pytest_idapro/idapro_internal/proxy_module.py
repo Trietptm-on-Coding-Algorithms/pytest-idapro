@@ -72,6 +72,6 @@ class ProxyModule(types.ModuleType):
         return setattr(self.__module, name, value)
 
 
-def install():
+def setup():
     safe_print("preloaded modules", sys.modules.keys())
     sys.meta_path.insert(0, ProxyModuleLoader())

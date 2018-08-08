@@ -50,10 +50,9 @@ class InternalDeferredPlugin(object):
             self.conn = self.listener.accept()
             self.listener.close()
             self.listener = None
-        except Exception:
+        finally:
             if self.config.getoption('--ida-record'):
                 self.uninstall_proxy_module()
-            raise
 
     def ida_finish(self, interrupted):
         if interrupted:
@@ -76,17 +75,28 @@ class InternalDeferredPlugin(object):
 
         with open(proxy_module_template, 'r') as fh:
             lines = [line.format(idapro_internal_dir=idapro_internal_dir)
-                       for line in fh.readlines()]
+                     for line in fh.readlines()]
         with open(ida_python_init, 'r') as fh:
             lines += fh.readlines()
         with open(ida_python_init, 'w') as fh:
             fh.writelines(lines)
 
-
     def uninstall_proxy_module(self):
+        idapro_internal_dir = os.path.join(os.path.dirname(__file__),
+                                           "idapro_internal")
+        proxy_module_template = os.path.join(idapro_internal_dir,
+                                             "init.py.tmpl")
+        ida_python_init = os.path.join(os.path.dirname(self.ida_path),
+                                       "python", "init.py")
+
         with open(proxy_module_template, 'r') as fh:
             lastline = fh.readlines()[-1]
-        # TODO: remove all lines of init until lastline (inc.)
+        lines = []
+        with open(ida_python_init, 'r') as fh:
+            for line in fh.readlines():
+                lines = [] if line == lastline else (lines + [line])
+        with open(ida_python_init, 'w') as fh:
+            fh.writelines(lines)
 
     def command_ping(self):
         self.send('ping')

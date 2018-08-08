@@ -13,6 +13,11 @@ def pytest_addoption(parser):
                                         "format. If no file is provided, an "
                                         "empty database will be automatically "
                                         "loaded.")
+    group._addoption('--ida-record', action='store_true',
+                     help="Enable pytest-idapro IDAPython API interface "
+                          "recording functionality when running in IDA. This "
+                          "may be later used with --ida-replay to simulate "
+                          "test execution without an IDA instance.")
 
 
 @pytest.hookimpl(tryfirst=True)
@@ -27,6 +32,9 @@ def pytest_cmdline_main(config):
     ida_file = config.getoption('--ida-file')
     if ida_file and not os.path.isfile(ida_file):
         raise pytest.UsageError("--ida-file must point to an IDA file.")
+    if config.getoption('--ida-record') and not ida_path:
+        raise pytest.UsageError("Cannot record without running in an IDA "
+                                "instance")
     # TODO: free text ida args?
 
 

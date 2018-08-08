@@ -52,4 +52,6 @@ class ProxyModule(types.ModuleType):
         pass
 
 
-sys.meta_path.insert(0, ProxyModuleLoader())
+def install():
+    print("preloaded modules", sys.modules.keys())
+    sys.meta_path.insert(0, ProxyModuleLoader())

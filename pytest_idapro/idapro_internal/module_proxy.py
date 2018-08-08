@@ -1,9 +1,11 @@
+import os
 import sys
 import types
 
 
 class ProxyModuleLoader(object):
     def __init__(self):
+        super(ProxyModuleLoader, self).__init__()
         self.loading = set()
 
     @staticmethod
@@ -12,17 +14,20 @@ class ProxyModuleLoader(object):
             return True
         return fullname.startswith("ida_")
 
-    def find_module(self, fullname, path):
-        print("module searched", fullname, path)
+    def find_module(self, fullname, path=None):
         if fullname in self.loading:
             return None
-        if self.is_idamodule(fullname):
-            print("module matched", fullname)
-            return self
+        if path and os.path.normpath(os.path.dirname(__file__)) in path:
+            return None
+        if not self.is_idamodule(fullname):
+            return None
+
+        return self
 
     def load_module(self, fullname):
         # for reload to function properly, must return existing instance if one
         # exists
+        print("Loading module", fullname)
         if fullname in sys.modules:
             return sys.modules[fullname]
 

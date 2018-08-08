@@ -1,6 +1,16 @@
 import os
 import sys
 import types
+import inspect
+
+_orig_stdout = sys.stdout
+_orig_stderr = sys.stderr
+
+# override print to remove dependencies
+# because stdout/err are replaced with IDA's, using it will cause an inifinite
+# recursion :)
+def safe_print(*args):
+    _orig_stdout.write(str(args) + "\n")
 
 
 class ProxyModuleLoader(object):
@@ -27,10 +37,11 @@ class ProxyModuleLoader(object):
     def load_module(self, fullname):
         # for reload to function properly, must return existing instance if one
         # exists
-        print("Loading module", fullname)
         if fullname in sys.modules:
-            return sys.modules[fullname]
+            #if not self.is_idamodule(fullname):
+                return sys.modules[fullname]
 
+        safe_print("Loading module", fullname)
         # otherwise, we'll create a module mockup
         # lock itself from continuously claiming to find ida modules, so that
         # the call to __import__ will not reach here again causing an infinite
@@ -46,17 +57,47 @@ class ProxyModuleLoader(object):
 class ProxyModule(types.ModuleType):
     def __init__(self, fullname, module):
         super(ProxyModule, self).__init__(fullname)
-        self.__module = module
-        print(self.__module)
+        object.__setattr__(self, '_ProxyModule__module', module)
+        safe_print("Proxy initiated with module {}".format(module))
 
-    def __getattr__(self, name):
+    def __getattribute__(self, name):
+        if name == "_ProxyModule__module":
+            return object.__getattribute__(self, "_ProxyModule__module")
+
+        safe_print("Getattr called", self.__module, name)
         return getattr(self.__module, name)
 
     def __setattr__(self, name, value):
-        # TODO: implement set attr proxy
-        pass
+        safe_print("SETattr called", self.__module, name)
+        return setattr(self.__module, name, value)
 
 
 def install():
-    print("preloaded modules", sys.modules.keys())
+    safe_print("preloaded modules", sys.modules.keys())
     sys.meta_path.insert(0, ProxyModuleLoader())
+
+    return
+    whitelisted_modules = {'sys', 'swig_runtime_data4', 'logging', '__main__', 'rematch.network'}
+    safe_print("Replacing preloaded modules")
+    c = f = s = 0
+    loaded_modules = list(sys.modules.keys())
+    for module_name in loaded_modules:
+        if module_name in whitelisted_modules:
+            c += 1
+            continue
+
+        module = sys.modules[module_name]
+        if not isinstance(module, types.ModuleType):
+            c += 1
+            continue
+
+        safe_print(module_name, module, type(module))
+        try:
+            reload(module)
+            safe_print(module_name, module, type(module))
+            s += 1
+        except (ImportError, TypeError):
+            f += 1
+            safe_print("Failed reloading module: {}".format(module))
+            raise
+        safe_print("reloaded successfuly: {}, continued: {}, failed: {} / {} modules".format(s, c, f, len(loaded_modules)))

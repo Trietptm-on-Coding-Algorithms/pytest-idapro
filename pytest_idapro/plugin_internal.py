@@ -67,10 +67,26 @@ class InternalDeferredPlugin(object):
         self.stop = True
 
     def install_proxy_module(self):
-        pass
+        idapro_internal_dir = os.path.join(os.path.dirname(__file__),
+                                           "idapro_internal")
+        proxy_module_template = os.path.join(idapro_internal_dir,
+                                             "init.py.tmpl")
+        ida_python_init = os.path.join(os.path.dirname(self.ida_path),
+                                       "python", "init.py")
+
+        with open(proxy_module_template, 'r') as fh:
+            lines = [line.format(idapro_internal_dir=idapro_internal_dir)
+                       for line in fh.readlines()]
+        with open(ida_python_init, 'r') as fh:
+            lines += fh.readlines()
+        with open(ida_python_init, 'w') as fh:
+            fh.writelines(lines)
+
 
     def uninstall_proxy_module(self):
-        pass
+        with open(proxy_module_template, 'r') as fh:
+            lastline = fh.readlines()[-1]
+        # TODO: remove all lines of init until lastline (inc.)
 
     def command_ping(self):
         self.send('ping')
